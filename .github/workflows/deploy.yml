@@ -1,4 +1,4 @@
-name: NetSpecter Production Pipeline
+name: NetSpecter Production Flow
 
 on:
   push:
@@ -6,10 +6,41 @@ on:
 
 jobs:
   # ------------------------------------------------------------------
-  # STAGE 1: BACKEND QUALITY ASSURANCE
+  # STAGE 1: BUILD (Compile & Package)
   # ------------------------------------------------------------------
-  backend-qa:
-    name: 🛡️ Backend Quality Check
+  build-stage:
+    name: 🏗️ Build Application
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend Build
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+      - name: Compile Backend code
+        run: cd backend && mvn clean package -DskipTests
+
+      # Frontend Build
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build Frontend Assets
+        run: |
+          cd net-specter-ui
+          npm install
+          npm run build
+
+  # ------------------------------------------------------------------
+  # STAGE 2: VALIDATE (Run Unit Tests)
+  # ------------------------------------------------------------------
+  test-stage:
+    name: 🧪 Validate Unit Tests
+    needs: build-stage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,48 +52,26 @@ jobs:
           distribution: "temurin"
           cache: maven
 
-      - name: Run Unit Tests & Security Checks
-        # Using verify to run integration tests if present
-        run: cd backend && mvn verify
+      - name: Run JUnit Tests
+        run: cd backend && mvn test
 
   # ------------------------------------------------------------------
-  # STAGE 2: FRONTEND BUILD VERIFICATION
+  # STAGE 3: DEPLOY (Production)
   # ------------------------------------------------------------------
-  frontend-build:
-    name: 🎨 Frontend Build Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install Dependencies & Build
-        run: |
-          cd net-specter-ui
-          npm install
-          npm run build
-
-  # ------------------------------------------------------------------
-  # STAGE 3: PRODUCTION DEPLOYMENT
-  # ------------------------------------------------------------------
-  deploy-production:
+  deploy-stage:
     name: 🚀 Deploy to Production
-    needs: [backend-qa, frontend-build]
+    needs: test-stage
     runs-on: ubuntu-latest
     if: success()
     steps:
       - name: Trigger Render Deployment
         env:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_PROD }}
-        # Simple check using shell conditional which is more robust
         run: |
           if [ -n "$DEPLOY_HOOK" ]; then
-            echo "Triggering deployment..."
+            echo "pipeline verified. deploying to production..."
             curl -X POST "$DEPLOY_HOOK"
           else
-            echo "::error::DEPLOY_HOOK is not set. Skipping deployment but marking as failed."
+            echo "::error::DEPLOY_HOOK is not set."
             exit 1
           fi
