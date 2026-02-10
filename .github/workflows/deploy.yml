@@ -1,43 +1,68 @@
-name: NetSpecter Deploy (Auto Prod)
+name: NetSpecter Production Pipeline
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  build-and-test:
+  # ------------------------------------------------------------------
+  # STAGE 1: BACKEND QUALITY ASSURANCE
+  # ------------------------------------------------------------------
+  backend-qa:
+    name: 🛡️ Backend Quality Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Backend Test
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
           cache: maven
-      - name: Test Backend
-        run: cd backend && mvn test
 
-      # Frontend Check
-      - name: Set up Node
+      - name: Run Unit Tests & Security Checks
+        # Using verify to run integration tests if present
+        run: cd backend && mvn verify
+
+  # ------------------------------------------------------------------
+  # STAGE 2: FRONTEND BUILD VERIFICATION
+  # ------------------------------------------------------------------
+  frontend-build:
+    name: 🎨 Frontend Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Build Frontend
+
+      - name: Install Dependencies & Build
         run: |
           cd net-specter-ui
           npm install
           npm run build
 
-  deploy-prod:
-    needs: build-and-test
+  # ------------------------------------------------------------------
+  # STAGE 3: PRODUCTION DEPLOYMENT
+  # ------------------------------------------------------------------
+  deploy-production:
+    name: 🚀 Deploy to Production
+    needs: [backend-qa, frontend-build]
     runs-on: ubuntu-latest
     if: success()
     steps:
-      - name: 🚀 Deploy to PRODUCTION
+      - name: Trigger Render Deployment
         env:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_PROD }}
-        if: ${{ env.DEPLOY_HOOK != '' }}
-        run: curl -X POST $DEPLOY_HOOK
+        # Simple check using shell conditional which is more robust
+        run: |
+          if [ -n "$DEPLOY_HOOK" ]; then
+            echo "Triggering deployment..."
+            curl -X POST "$DEPLOY_HOOK"
+          else
+            echo "::error::DEPLOY_HOOK is not set. Skipping deployment but marking as failed."
+            exit 1
+          fi
