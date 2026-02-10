@@ -280,6 +280,7 @@ public class ScanResult {
     }
 
     private List<GeoHop> geoTrace;
+    private AdvancedRecon advancedRecon;
 
     public List<GeoHop> getGeoTrace() {
         return geoTrace;
@@ -287,6 +288,62 @@ public class ScanResult {
 
     public void setGeoTrace(List<GeoHop> geoTrace) {
         this.geoTrace = geoTrace;
+    }
+
+    public AdvancedRecon getAdvancedRecon() {
+        return advancedRecon;
+    }
+
+    public void setAdvancedRecon(AdvancedRecon advancedRecon) {
+        this.advancedRecon = advancedRecon;
+    }
+
+    public static class AdvancedRecon {
+        private List<String> subdomains;
+        private List<String> leakedEmails;
+        private List<String> cloudAssets; // S3 Buckets, Blobs
+        private String wafStatus;
+        private String whoisRegistrar;
+
+        public List<String> getSubdomains() {
+            return subdomains;
+        }
+
+        public void setSubdomains(List<String> subdomains) {
+            this.subdomains = subdomains;
+        }
+
+        public List<String> getLeakedEmails() {
+            return leakedEmails;
+        }
+
+        public void setLeakedEmails(List<String> leakedEmails) {
+            this.leakedEmails = leakedEmails;
+        }
+
+        public List<String> getCloudAssets() {
+            return cloudAssets;
+        }
+
+        public void setCloudAssets(List<String> cloudAssets) {
+            this.cloudAssets = cloudAssets;
+        }
+
+        public String getWafStatus() {
+            return wafStatus;
+        }
+
+        public void setWafStatus(String wafStatus) {
+            this.wafStatus = wafStatus;
+        }
+
+        public String getWhoisRegistrar() {
+            return whoisRegistrar;
+        }
+
+        public void setWhoisRegistrar(String whoisRegistrar) {
+            this.whoisRegistrar = whoisRegistrar;
+        }
     }
 
     public static class GeoHop {

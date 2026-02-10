@@ -52,6 +52,13 @@ interface ScanResult {
         latitude: number;
         longitude: number;
     }[];
+    advancedRecon?: {
+        subdomains: string[];
+        leakedEmails: string[];
+        cloudAssets: string[];
+        wafStatus: string;
+        whoisRegistrar: string;
+    };
 }
 
 function ScanPage() {
@@ -640,10 +647,68 @@ function ScanPage() {
                             </div>
                         )}
 
+                        {/* Advanced Deep Recon (Hacker View) */}
+                        {result.advancedRecon && (
+                            <div className="card" style={{ border: '1px solid #d2a8ff', background: '#0d1117' }}>
+                                <h3 style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #d2a8ff', paddingBottom: '10px', color: '#d2a8ff', fontFamily: 'monospace' }}>
+                                    <Terminal size={16} /> DEEP RECONNAISSANCE MODE (OSINT)
+                                </h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
+
+                                    {/* Subdomains */}
+                                    <div>
+                                        <div style={{ color: '#7ee787', fontSize: '0.85rem', marginBottom: '10px', textTransform: 'uppercase' }}>>> Subdomain Enumeration</div>
+                                        <div style={{ background: '#0a0c10', padding: '10px', borderRadius: '4px', border: '1px solid #30363d', fontFamily: 'monospace', fontSize: '0.85rem', color: '#8b949e', height: '150px', overflowY: 'auto' }}>
+                                            {result.advancedRecon.subdomains.map((sub, i) => (
+                                                <div key={i}>[+] {sub}</div>
+                                            ))}
+                                            {result.advancedRecon.subdomains.length === 0 && <div>No subdomains found.</div>}
+                                        </div>
+                                    </div>
+
+                                    {/* Cloud Assets */}
+                                    <div>
+                                        <div style={{ color: '#e3b341', fontSize: '0.85rem', marginBottom: '10px', textTransform: 'uppercase' }}>>> Local Cloud Leaks (S3/Blobs)</div>
+                                        <div style={{ background: '#0a0c10', padding: '10px', borderRadius: '4px', border: '1px solid #30363d', fontFamily: 'monospace', fontSize: '0.85rem', color: '#e3b341', height: '150px', overflowY: 'auto' }}>
+                                            {result.advancedRecon.cloudAssets.map((asset, i) => (
+                                                <div key={i}>{asset}</div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Emails */}
+                                    <div>
+                                        <div style={{ color: '#ff7b72', fontSize: '0.85rem', marginBottom: '10px', textTransform: 'uppercase' }}>>> Harvested Credentials (Emails)</div>
+                                        <div style={{ background: '#0a0c10', padding: '10px', borderRadius: '4px', border: '1px solid #30363d', fontFamily: 'monospace', fontSize: '0.85rem', color: '#ff7b72', height: '150px', overflowY: 'auto' }}>
+                                            {result.advancedRecon.leakedEmails.map((email, i) => (
+                                                <div key={i}>[!] {email}</div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* WAF & Registrar */}
+                                    <div>
+                                        <div style={{ color: '#79c0ff', fontSize: '0.85rem', marginBottom: '10px', textTransform: 'uppercase' }}>>> Infrastructure Intelligence</div>
+                                        <div style={{ background: '#0a0c10', padding: '10px', borderRadius: '4px', border: '1px solid #30363d', fontFamily: 'monospace', fontSize: '0.85rem', color: '#c9d1d9', height: '150px', overflowY: 'auto' }}>
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <span style={{ color: '#8b949e' }}>WAF Status: </span>
+                                                <span style={{ color: result.advancedRecon.wafStatus.includes('Detected') ? '#e3b341' : '#79c0ff' }}>{result.advancedRecon.wafStatus}</span>
+                                            </div>
+                                            <div>
+                                                <span style={{ color: '#8b949e' }}>Registrar: </span>
+                                                <span style={{ color: '#79c0ff' }}>{result.advancedRecon.whoisRegistrar}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        )}
+
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 
