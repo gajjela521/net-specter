@@ -4,6 +4,7 @@ import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
 import OAuth2Callback from './OAuth2Callback';
 import ForgotPasswordPage from './ForgotPasswordPage';
+import NetworkPage from './NetworkPage';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/oauth/callback" element={<OAuth2Callback />} />
+        <Route path="/network" element={<NetworkPage />} />
         <Route path="/" element={<ScanPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
