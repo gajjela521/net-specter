@@ -37,5 +37,7 @@ jobs:
     if: success()
     steps:
       - name: 🚀 Deploy to PRODUCTION
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_PROD != '' }}
-        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_PROD }}
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_PROD }}
+        if: ${{ env.DEPLOY_HOOK != '' }}
+        run: curl -X POST $DEPLOY_HOOK
