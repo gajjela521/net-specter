@@ -148,6 +148,25 @@ function ScanPage() {
         }
     };
 
+    // Server Stats Logic
+    const [stats, setStats] = useState({ activeUsers: 0, activeRequests: 0, uptime: '0h 00m' });
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await fetch('/api/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    setStats(data);
+                }
+            } catch (e) { console.error("Stats fetch failed", e); }
+        };
+
+        fetchStats();
+        const interval = setInterval(fetchStats, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
     const getSeverityColor = (severity: string) => {
         switch (severity) {
             case 'Critical': return 'risk-critical';
@@ -169,6 +188,32 @@ function ScanPage() {
                         <p style={{ margin: 0, opacity: 0.6, fontSize: '0.9rem' }}>Advanced Cyber Intelligence Platform</p>
                     </div>
                 </div>
+                {/* Live Stats Bar */}
+                <div style={{
+                    display: 'flex',
+                    gap: '20px',
+                    alignItems: 'center',
+                    background: 'rgba(13, 17, 23, 0.8)',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid #30363d'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#8b949e' }}>
+                        <Globe size={14} color="#58a6ff" />
+                        <span>Active Users: <strong style={{ color: '#c9d1d9' }}>{stats.activeUsers}</strong></span>
+                    </div>
+                    <div style={{ width: '1px', height: '16px', background: '#30363d' }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#8b949e' }}>
+                        <Activity size={14} color="#7ee787" />
+                        <span>Live Requests: <strong style={{ color: '#c9d1d9' }}>{stats.activeRequests}</strong></span>
+                    </div>
+                    <div style={{ width: '1px', height: '16px', background: '#30363d' }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#8b949e' }}>
+                        <CheckCircle size={14} color="#e3b341" />
+                        <span>Uptime: <strong style={{ color: '#c9d1d9' }}>{stats.uptime}</strong></span>
+                    </div>
+                </div>
+
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(35, 134, 54, 0.2)', padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid var(--success-border)', color: 'var(--success)' }}>
                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }}></div>
@@ -176,6 +221,9 @@ function ScanPage() {
                     </div>
                     <button onClick={handleLogout} style={{ background: 'var(--panel-bg)', border: '1px solid var(--border)', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <LogOut size={16} /> Logout
+                    </button>
+                    <button onClick={() => navigate('/network')} style={{ background: 'var(--panel-bg)', border: '1px solid var(--accent)', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Radio size={16} /> WiFi Scan
                     </button>
                 </div>
             </header>
