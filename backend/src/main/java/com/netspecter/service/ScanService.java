@@ -1,22 +1,24 @@
 package com.netspecter.service;
 
 import com.netspecter.model.ScanResult;
-import com.netspecter.model.ScanResult.*;
+import com.netspecter.model.ScanResult.*; // Import inner beans
+import com.netspecter.service.DarkWebService;
+import com.netspecter.service.AttackGraphService;
+import com.netspecter.service.GeoRouteService;
+
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.xbill.DNS.*;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.URL;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,13 +30,21 @@ import java.util.function.Consumer;
 @Service
 public class ScanService {
 
+    @Autowired
+    private DarkWebService darkWebService;
+    
+    @Autowired
+
+        
+    @Autowired
+    private GeoRouteService geoRouteService;
+
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     public ScanResult performScan(String input) {
         // Delegate to the streaming version with a no-op logger
         final ScanResult[] resultHolder = new ScanResult[1];
-        performScan(input, (msg) -> {
-        }, (res) -> resultHolder[0] = res);
+        performScan(input, (msg) -> {}, (res) -> resultHolder[0] = res);
         return resultHolder[0];
     }
 
@@ -51,9 +61,9 @@ public class ScanService {
             result.setVulnerabilities(new ArrayList<>());
             result.setIpInfo(new IpInfo());
             result.setDnsInfo(new DnsInfo());
-            result.setSslInfo(new SslInfo()); // New Enterprise Feature
-            result.setOpenPorts(new ArrayList<>()); // New Enterprise Feature
-            result.setTechStack(new ArrayList<>()); // New Enterprise Feature
+            result.setSslInfo(new SslInfo());
+            result.setOpenPorts(new ArrayList<>());
+            result.setTechStack(new ArrayList<>());
 
             logger.accept("INIT: Initializing NetSpecter Security Grid...");
             logger.accept("TARGET: " + target);
@@ -119,64 +129,59 @@ public class ScanService {
                 } else if (result.getThreatScore() > 40) {
                      result.setSummary("ELEVATED RISK. Security hardening recommended.");
                 } else {
-                    result.setSummary("SECURE. System operating within normal parameters.");
-                }
+                    result.setSummary("SECU
 
-                logger.accept("[STAGE:SECURITY] Scan Completed Successfully.");
+                result.setDarkWebFindings(findings);
+                logger.accept("[STAGE:DARK_WEB] Dark Web Analysis Complete.");
+
+                // Phase 5: Attack Graph Visualization
+                AttackGraphService.AttackGraph graph = attackGraphService.buildAttackGraph(result, logger);
+                result.setAttackGraph(graph);
+                logger.accept("[STAGE:VISUAL] Attack Path Map Generated.");
+
+                // Phase 6: Live Geo-Tracking
+                List<GeoHop> geoHops = geoRouteService.traceRoute(target, logger);
+                result.setGeoTrace(geoHops);
+                logger.accept("[STAGE:GEO] Location Trace Complete.");
                 
-            } catch (Exception e) {
-                logger.accept("CRITICAL FAILURE: " + e.getMessage());
+            } catch (Throwable e) {
+                e.printStackTrace();
+                logger.accept("CRITICAL FAILURE: " + e.getClass().getSimpleName() + " - " + e.getMessage());
                 result.setSummary("Scan Failed: " + e.getMessage());
-                result.setThreatScore(0.0);
-            }
-
-           
-
-     
+             
 
     
+            onComplete.accept(result);
+
+    -
+
     private String detectOrganization(InetAddress address) {
         // Simulating enterprise GeoIP/ASN lookup
         return "Unknown (Requires GeoIP License)";
     }
 
-    private boolean isPortOpen(String host, int port) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), 200); // Fast timeout
-            return true;
-        } catch (Exception e) {
-            return false;
+    rtOpen(String host, int port) {
+    e
+
+    
+
+    { TrustManager[] trustAllCerts    new X509Tru
+
+           public vi hekServerTusted(X509Certificate[] cer
+    s
         }
-    }
-
-    private SslInfo analyzeSsl(String target, Consumer<String> logger) {
-        SslInfo info = new SslInfo();
-        info.setValid(false);
-        try {
-             
-               new X509TrustManager() { 
-                        public X509Certifica
-                        public void checkClientTrusted(X509Certificate[
-                             certs, Stri
-                        g
-
-                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                        }
-
-                        
-                        
-                    
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            
-
-            
-
-            HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-            conn.setConnectTimeout(5000);
-            conn.connect();
-            
-
+        
+        ontext sc = SSLContext.getInstance("SSL");
+        nit(null, trustAllCerts, new java.security.Secure
+        
+        sURLConnection.setDefaultSSLSocketFactor
+        
+        url = new URL("https://" + target);
+    H   con.
+    setConnectTi
+    e
+        conn.connect();
+         java.security.cert.Certificate[] certs = conn.getServerCertificates();
             if (certs.length > 0 && certs[0] instanceof X509Certificate) {
                 X509Certificate x509 = (X509Certificate) certs[0];
                 info.setIssuer(x509.getIssuerDN().getName());
@@ -205,8 +210,7 @@ public class ScanService {
             conn.setConnectTimeout(10000); 
             conn.setReadTimeout(10000);
             conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NetSpecter-Enterprise/1.0");
-            conn.setInstanceFollowRedirects(true)
-                    
+            conn.setInstanceFollowRedirects(true);
             conn.connect();
 
             // Handle Redirects
@@ -224,10 +228,11 @@ public class ScanService {
                 }
             }
             
-
+            // Tech Detection via Headers
             String server = conn.getHeaderField("Server");
             if (server != null) {
-                result.getTechStack().add("Server: " + server);
+              result.getTec
+    Stack().add("Server: " + server);
                 logger.accept("ℹ DETECTED TECH: " + server);
             }
             String poweredBy = conn.getHeaderField("X-Powered-By");
@@ -239,47 +244,32 @@ public class ScanService {
             // Perform header checks
             performChecks(conn, vulns);
 
-        } catch (Exception e) {
-            // Fallback to HTTPS directly
-            try {
-                logger.accept("HTTP connection failed. Trying direct HTTPS...");
+
+    logger.accept("HTTP connection failed. Trying direct HTTPS...");
                 String httpsTarget = target.startsWith("http") ? target : "https://" + target; 
                 URL url = java.net.URI.create(httpsTarget).toURL();
                 conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("HEAD");
-                conn.setConnectTimeout(10000);
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NetSpecter-Enterprise/1.0");
-                conn.connect();
-                        
-                
+                      conn. 
 
-                tch (Exception ex) {
-                String error = "Connection failed: " + ex.getMessage();
-                logger.accept("❌ " + error);
-                vulns.add(createVuln("Connectivity", "Critical", error, "Check URL validity"));
-            }
-        }
-        return vulns;
-    }
+        } catch (Exception e) {
+                String error = "Connection
 
-    private void performChecks(HttpURLConnection conn, List<Vulnerability> vulns) {
-        checkMissingHeader(conn, "X-Content-Type-Options", "nosniff", "Low", "Prevents MIME-sniffing", vulns);
-        checkMissingHeader(conn, "X-Frame-Options", "DENY", "Medium", "Prevents Clickjacking", vulns);
-        checkMissingHeader(conn, "Content-Security-Policy", null, "High", "Mitigates XSS", vulns);
-        checkMissingHeader(conn, "Strict-Transport-Security", null, "High", "Enforces HTTPS", vulns);
-        checkMissingHeader(conn, "Permissions-Policy", null, "Low", "Controls browser features", vulns);
-        checkMissingHeader(conn, "Referrer-Policy", null, "Low", "Controls referrer information", vulns);
-    }
+            vulns.add(createuln("Connectivity", "Critial", rror, "heck URL validit"));    }}return vulns;}
+
+    checkMissingHeader(conn, "X-Content-Type-Options", "nosniff", "Low", "Prevents MIME-sniffing", vulns);
+      
+
+    kMissingHeader(conn, "Strict-Transport-Security", null, "High", kMssingHeaerconn,
+    "
+        singHeader(conn, "Referrer-Policy", null, "Lo
+            
+        
+    LLst<Sting> recor
+    {
     
+        org.xbill.DNS.Record[] results = new Lookup(domain, type).run();
+     
 
-        List<String> records = new ArrayList<>();
-    // 
-
-            org.xbill.DNS.Record[] results = new Lookup(domain, type).run();
-            if (results != null) {
-                for (org.xbill.DNS.Record record : results) {
-                    records.add(record.rdataToString());
-                }
             }
         } catch (TextParseException e) {}
         return records;
@@ -291,24 +281,20 @@ public class ScanService {
         if (input.contains("@")) input = input.substring(input.indexOf("@") + 1);
         if (input.toLowerCase().startsWith("http://")) input = input.substring(7);
         else if (input.toLowerCase().startsWith("https://")) input = input.substring(8);
-        if (input.contains
-            "/")) input = input.substring(0, input.indexOf("/"));
-        if (input.contains("?")) input = input.substring(0, input.indexOf("?"));
-        return input;
-            
-    }
-            
+     
 
-            
-    private void checkMissingHea
-            er(HttpURLConnection conn, String header, String expectedValue, String severity, String desc, List<Vulnerability> vulns) {
-        String value = conn.getH
-            aderField(header);
+    
+
+    void checkMissingHeader(HttpURLConnection conn, String header, String expectedValue, String severity, String desc, List<Vulnerability> vulns) {
+        String value = conn.getHeaderField(header);
         if (value == null) {
             vulns.add(createVuln("Missing Security Header", severity, "Missing " + header + ". " + desc, "Add " + header + " to server config."));
         } else if (expectedValue != null && !value.contains(expectedValue)) {
-     
+            // Loose check
+        }
+    }
 
+    private Vulnerability createVuln(String type, String severity, String desc, String rem) {
         Vulnerability v = new Vulnerability();
         v.setType(type);
         v.setSeverity(severity);
@@ -334,8 +320,7 @@ public class ScanService {
         }
         if (result.getSslInfo() != null && !result.getSslInfo().isValid()) {
             score += 20; 
-        }
-        result.setThreatScore(Math.min(score, 100));
+     
     }
 
     private String generateCodename(String target) {
@@ -346,4 +331,3 @@ public class ScanService {
         return prefixes[hash % prefixes.length] + " " + adjectives[(hash / 10) % adjectives.length] + " " + nouns[(hash / 100) % nouns.length];
     }
 }
-

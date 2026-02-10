@@ -11,6 +11,8 @@ public class ScanResult {
     private double threatScore;
     private String summary;
     private String codename;
+    private List<String> darkWebFindings;
+    private com.netspecter.service.AttackGraphService.AttackGraph attackGraph;
 
     // Getters and Setters
     public String getTarget() {
@@ -19,6 +21,22 @@ public class ScanResult {
 
     public void setTarget(String target) {
         this.target = target;
+    }
+
+    public List<String> getDarkWebFindings() {
+        return darkWebFindings;
+    }
+
+    public void setDarkWebFindings(List<String> findings) {
+        this.darkWebFindings = findings;
+    }
+
+    public com.netspecter.service.AttackGraphService.AttackGraph getAttackGraph() {
+        return attackGraph;
+    }
+
+    public void setAttackGraph(com.netspecter.service.AttackGraphService.AttackGraph graph) {
+        this.attackGraph = graph;
     }
 
     public String getScanTime() {
@@ -258,6 +276,52 @@ public class ScanResult {
 
         public void setRemediation(String remediation) {
             this.remediation = remediation;
+        }
+    }
+
+    private List<GeoHop> geoTrace;
+
+    public List<GeoHop> getGeoTrace() {
+        return geoTrace;
+    }
+
+    public void setGeoTrace(List<GeoHop> geoTrace) {
+        this.geoTrace = geoTrace;
+    }
+
+    public static class GeoHop {
+        private int step;
+        private String ip;
+        private String location;
+        private double latitude;
+        private double longitude;
+
+        public GeoHop(int step, String ip, String location, double latitude, double longitude) {
+            this.step = step;
+            this.ip = ip;
+            this.location = location;
+            this.latitude = latitude;
+            this.longitude = longitude;
+        }
+
+        public int getStep() {
+            return step;
+        }
+
+        public String getIp() {
+            return ip;
+        }
+
+        public String getLocation() {
+            return location;
+        }
+
+        public double getLatitude() {
+            return latitude;
+        }
+
+        public double getLongitude() {
+            return longitude;
         }
     }
 }

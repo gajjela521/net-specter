@@ -40,6 +40,18 @@ interface ScanResult {
     openPorts?: number[];
     techStack?: string[];
     vulnerabilities: Vulnerability[];
+    darkWebFindings?: string[];
+    attackGraph?: {
+        nodes: { id: string; label: string; type: string }[];
+        edges: { source: string; target: string; label: string }[];
+    };
+    geoTrace?: {
+        step: number;
+        ip: string;
+        location: string;
+        latitude: number;
+        longitude: number;
+    }[];
 }
 
 function ScanPage() {
@@ -224,7 +236,14 @@ function ScanPage() {
                             <div style={{ color: '#79c0ff', fontSize: '0.8rem', fontWeight: 'bold', borderBottom: '1px solid #30363d', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase' }}>
                                 [Stage 1] Network Infrastructure
                             </div>
-                            {logs.filter(l => l.includes("[STAGE:NETWORK]") || (!l.includes("[STAGE:") && logs.indexOf(l) < logs.findIndex(x => x.includes("[STAGE:APP]")) && logs.indexOf(l) >= 0)).map((log, i) => (
+                            {logs.filter(l => {
+                                const appIndex = logs.findIndex(x => x.includes("[STAGE:APP]"));
+                                const myIndex = logs.indexOf(l);
+                                if (l.includes("[STAGE:NETWORK]")) return true;
+                                if (l.includes("[STAGE:")) return false;
+                                if (appIndex === -1) return true;
+                                return myIndex < appIndex;
+                            }).map((log, i) => (
                                 <div key={i} style={{
                                     paddingLeft: '8px',
                                     fontSize: '0.8rem',
@@ -424,6 +443,202 @@ function ScanPage() {
                                 </table>
                             )}
                         </div>
+
+                        {/* Dark Web Intelligence */}
+                        {result.darkWebFindings && result.darkWebFindings.length > 0 && (
+                            <div className="card">
+                                <h3 style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', color: '#d2a8ff' }}>
+                                    <Globe size={16} /> Dark Web Intelligence
+                                </h3>
+                                <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {result.darkWebFindings.map((finding, i) => (
+                                        <div key={i} style={{
+                                            background: 'rgba(210, 168, 255, 0.1)',
+                                            borderLeft: '3px solid #d2a8ff',
+                                            padding: '10px',
+                                            fontSize: '0.9rem'
+                                        }}>
+                                            <strong>[BREACH DATA]</strong> {finding}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Visual Attack Map */}
+                        {result.attackGraph && (
+                            <div className="card" style={{ overflowX: 'auto' }}>
+                                <h3 style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', color: '#ff7b72' }}>
+                                    <AlertTriangle size={16} /> Attack Surface Map
+                                </h3>
+                                <div style={{ marginTop: '20px', minHeight: '300px', background: '#0d1117', borderRadius: '6px', position: 'relative', border: '1px solid #30363d' }}>
+                                    <svg width="100%" height="300" style={{ minWidth: '600px' }}>
+                                        <defs>
+                                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
+                                                <polygon points="0 0, 10 3.5, 0 7" fill="#8b949e" />
+                                            </marker>
+                                        </defs>
+                                        {/* Simple Auto-Layout for Visualization */}
+                                        {(() => {
+                                            const nodes = result.attackGraph?.nodes || [];
+                                            const edges = result.attackGraph?.edges || [];
+
+                                            // Assign ranks based on type
+                                            const getRank = (type: string) => {
+                                                if (type === 'actor') return 0;
+                                                if (type === 'device') return 1;
+                                                if (type === 'server') return 2;
+                                                if (type === 'software') return 3;
+                                                if (type === 'exploit') return 3.5; // branching
+                                                if (type === 'database') return 4;
+                                                return 5;
+                                            };
+
+                                            // Calculate positions
+                                            const positions: Record<string, { x: number, y: number }> = {};
+                                            const levelCounts: Record<number, number> = {};
+
+                                            nodes.forEach(n => {
+                                                const rank = getRank(n.type);
+                                                levelCounts[rank] = (levelCounts[rank] || 0) + 1;
+                                            });
+
+                                            const currentCounts: Record<number, number> = {};
+                                            nodes.forEach(n => {
+                                                const rank = getRank(n.type);
+                                                const count = levelCounts[rank];
+                                                const index = currentCounts[rank] || 0;
+                                                currentCounts[rank] = index + 1;
+
+                                                positions[n.id] = {
+                                                    x: 50 + (rank * 150),
+                                                    y: 150 + ((index - (count - 1) / 2) * 80)
+                                                };
+                                            });
+
+                                            return (
+                                                <>
+                                                    {/* Edges */}
+                                                    {edges.map((e, i) => {
+                                                        const start = positions[e.source];
+                                                        const end = positions[e.target];
+                                                        if (!start || !end) return null;
+                                                        return (
+                                                            <g key={`edge-${i}`}>
+                                                                <line
+                                                                    x1={start.x} y1={start.y}
+                                                                    x2={end.x} y2={end.y}
+                                                                    stroke="#30363d"
+                                                                    strokeWidth="2"
+                                                                    markerEnd="url(#arrowhead)"
+                                                                />
+                                                                <text x={(start.x + end.x) / 2} y={(start.y + end.y) / 2 - 5} fill="#8b949e" fontSize="10" textAnchor="middle">{e.label}</text>
+                                                            </g>
+                                                        );
+                                                    })}
+
+                                                    {/* Nodes */}
+                                                    {nodes.map((n, i) => {
+                                                        const pos = positions[n.id];
+                                                        let color = '#58a6ff'; // Default blue
+                                                        if (n.type === 'actor') color = '#fff';
+                                                        if (n.type === 'exploit') color = '#ff7b72'; // Red
+                                                        if (n.type === 'database') color = '#e3b341'; // Yellow
+
+                                                        return (
+                                                            <g key={`node-${i}`}>
+                                                                <circle cx={pos.x} cy={pos.y} r="25" fill="#161b22" stroke={color} strokeWidth="2" />
+                                                                <text x={pos.x} y={pos.y + 40} fill="#c9d1d9" fontSize="12" textAnchor="middle" style={{ fontWeight: 'bold' }}>{n.label}</text>
+                                                                <text x={pos.x} y={pos.y + 5} fill={color} fontSize="18" textAnchor="middle" dominantBaseline="middle">
+                                                                    {n.type === 'actor' ? '👤' : n.type === 'database' ? '🛢' : n.type === 'exploit' ? '⚡' : n.type === 'server' ? '🖥' : '⚙'}
+                                                                </text>
+                                                            </g>
+                                                        );
+                                                    })}
+                                                </>
+                                            );
+                                        })()}
+                                    </svg>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Live Geo-Trace */}
+                        {result.geoTrace && (
+                            <div className="card" style={{ overflowX: 'auto' }}>
+                                <h3 style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', color: '#79c0ff' }}>
+                                    <Globe size={16} /> Live Network Trace (Texas ➜ Target)
+                                </h3>
+                                <div style={{ marginTop: '20px', minHeight: '400px', background: '#0d1117', borderRadius: '6px', position: 'relative', border: '1px solid #30363d', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                    <svg width="800" height="400" viewBox="0 0 800 400" style={{ background: '#0a0c10' }}>
+                                        {/* Simple World Map Silhouette (Abstract) */}
+                                        <g fill="#21262d">
+                                            <path d="M140,100 Q150,80 180,90 T220,120 T260,100 T300,80 T350,110 T400,100 T450,80 T500,100 T550,120 T600,140 T650,120 T700,150 T750,200 L750,300 L50,300 L50,150 Z" opacity="0.2" />
+                                            {/* North America */}
+                                            <path d="M50,60 L240,60 L200,200 L80,180 Z" />
+                                            {/* South America */}
+                                            <path d="M180,210 L260,210 L240,350 L190,340 Z" />
+                                            {/* Europe/Asia/Africa */}
+                                            <path d="M300,60 L750,60 L750,250 L600,320 L400,320 L320,200 L280,100 Z" />
+                                            {/* Australia */}
+                                            <path d="M620,260 L740,260 L720,340 L640,330 Z" />
+                                        </g>
+
+                                        {/* Grid Lines */}
+                                        <g stroke="#30363d" strokeWidth="0.5" opacity="0.3">
+                                            <line x1="0" y1="100" x2="800" y2="100" />
+                                            <line x1="0" y1="200" x2="800" y2="200" />
+                                            <line x1="0" y1="300" x2="800" y2="300" />
+                                            <line x1="200" y1="0" x2="200" y2="400" />
+                                            <line x1="400" y1="0" x2="400" y2="400" />
+                                            <line x1="600" y1="0" x2="600" y2="400" />
+                                        </g>
+
+                                        {/* Connection Lines */}
+                                        <polyline
+                                            points={result.geoTrace.map(h => {
+                                                // Simple Mercator Projection Shim
+                                                const x = (h.longitude + 180) * (800 / 360);
+                                                const latRad = h.latitude * Math.PI / 180;
+                                                const mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
+                                                const y = (400 / 2) - (800 * mercN / (2 * Math.PI));
+                                                return `${x},${y}`;
+                                            }).join(' ')}
+                                            fill="none"
+                                            stroke="#58a6ff"
+                                            strokeWidth="2"
+                                            strokeDasharray="5,5"
+                                            opacity="0.6"
+                                        />
+
+                                        {/* Hops */}
+                                        {result.geoTrace.map((h, i) => {
+                                            // Simple Mercator Projection Shim
+                                            const x = (h.longitude + 180) * (800 / 360);
+                                            const latRad = h.latitude * Math.PI / 180;
+                                            const mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
+                                            const y = (400 / 2) - (800 * mercN / (2 * Math.PI));
+
+                                            return (
+                                                <g key={i}>
+                                                    <circle cx={x} cy={y} r="4" fill={i === 0 ? '#7ee787' : i === result.geoTrace!.length - 1 ? '#ff7b72' : '#58a6ff'} />
+                                                    <circle cx={x} cy={y} r="8" fill={i === 0 ? '#7ee787' : i === result.geoTrace!.length - 1 ? '#ff7b72' : '#58a6ff'} opacity="0.3">
+                                                        <animate attributeName="r" values="4;12;4" dur="2s" repeatCount="indefinite" />
+                                                        <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite" />
+                                                    </circle>
+                                                    <text x={x} y={y - 12} fill="#c9d1d9" fontSize="10" textAnchor="middle" style={{ textShadow: '0 1px 4px #000' }}>
+                                                        {h.location.split(',')[0]}
+                                                    </text>
+                                                    <text x={x} y={y + 15} fill="#8b949e" fontSize="9" textAnchor="middle">
+                                                        {h.ip}
+                                                    </text>
+                                                </g>
+                                            );
+                                        })}
+                                    </svg>
+                                </div>
+                            </div>
+                        )}
 
                     </div>
                 )}
