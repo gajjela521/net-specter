@@ -5,13 +5,25 @@ import com.netspecter.service.ScanService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.xbill.DNS.Lookup;
+import org.xbill.DNS.Type;
+
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @RestController
 @RequestMapping("/api/scan")
+@CrossOrigin(origins = "*") // Allow all origins for development
 public class ScanController {
 
     @Autowired
     private ScanService scanService;
+
+    // Use a cached thread pool to avoid excessive thread creation if many requests
+    // come in
+    private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
 
     @GetMapping
     public ResponseEntity<ScanResult> scanTarget(@RequestParam String target) {
@@ -20,36 +32,39 @@ public class ScanController {
     }
 
     @GetMapping("/stream")
-    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamScan(@RequestParam String target) {
-        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(
-                600000L); // 10 mins timeout
+    public SseEmitter streamScan(@RequestParam String target) {
+        // increased timeout to 10 minutes
+        SseEmitter emitter = new SseEmitter(600_000L);
 
-        java.util.concurrent.ExecutorService sseExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
-
-        sseExecutor.execute(() -> {
+        // Execute scan in a separate thread so we can return the emitter immediately
+        // Note: ScanService.performScan is also async but we wrap it here to catch
+        // immediate exceptions
+        sseExecutor.submit(() -> {
             try {
                 scanService.performScan(target,
                         // Logger Consumer
                         (logMessage) -> {
                             try {
-                                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
-                                        .name("log").data(logMessage));
-                            } catch (Exception e) {
+                                emitter.send(SseEmitter.event().name("log").data(logMessage));
+                            } catch (IOException e) {
                                 emitter.completeWithError(e);
                             }
                         },
                         // OnComplete Consumer
                         (result) -> {
                             try {
-                                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
-                                        .name("result").data(result));
+                                emitter.send(SseEmitter.event().name("result").data(result));
                                 emitter.complete();
-                            } catch (Exception e) {
+                            } catch (IOException e) {
                                 emitter.completeWithError(e);
                             }
                         });
             } catch (Exception ex) {
-                emitter.completeWithError(ex);
+                try {
+                    emitter.completeWithError(ex);
+                } catch (Exception e) {
+                    // ignore if already completed
+                }
             }
         });
 
@@ -64,9 +79,9 @@ public class ScanController {
     @GetMapping("/dns")
     public ResponseEntity<String> checkDns() {
         try {
-            org.xbill.DNS.Lookup lookup = new org.xbill.DNS.Lookup("google.com", org.xbill.DNS.Type.A);
+            Lookup lookup = new Lookup("google.com", Type.A);
             lookup.run();
-            if (lookup.getResult() == org.xbill.DNS.Lookup.SUCCESSFUL) {
+            if (lookup.getResult() == Lookup.SUCCESSFUL) {
                 return ResponseEntity.ok("DNS Resolution WORKS!");
             } else {
                 return ResponseEntity.internalServerError().body("DNS lookup failed: " + lookup.getErrorString());
