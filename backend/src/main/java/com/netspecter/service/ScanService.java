@@ -234,13 +234,15 @@ public class ScanService {
             conn.setRequestMethod("HEAD");
             conn.setConnectTimeout(10000); 
             conn.setReadTimeout(10000);
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NetSpecter-Enterprise/1.0");
-            conn.setInstanceFollowRedirects(true);
+            // CONCATENATED STRING TO PREVENT TOOL WRAPPING ISSUES
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " + 
+                "NetSpecter-Enterprise/1.0");
+            conn.setInstanceFollowRedirect
             conn.connect();
 
+                    
             // Handle Redirects
             int status = conn.getResponseCode();
-                    
             logger.accept("HTTP Response: " + status);
 
             if (status >= 300 && status < 400) {
@@ -255,10 +257,10 @@ public class ScanService {
             }
             
             // Tech Detection via Headers
-            String server = conn.getHeaderField("Server");
-            if (server != null) {
-             
+            S
 
+                result.getTechStack().add("Server: " + server);
+                logger.accept("[*] DETECTED TECH: " + server);
             }
             String poweredBy = conn.getHeaderField("X-Powered-By");
             if (poweredBy != null) {
@@ -278,16 +280,18 @@ public class ScanService {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("HEAD");
                 conn.setConnectTimeout(10000);
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x6
+                // CONCATENATED STRING TO PREVENT TOOL WRAPPING ISSUES
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " + 
+                    "NetSpecter-Enterprise/1.0");
                 conn.connect();
+                        
                 
-                performChecks(conn, vulns);
-            } catch (Exception ex) {
-                String error = "Connection failed: " 
-                         ex.getMessage();
-                logger.accept("
 
-                
+                tch (Exception ex) {
+                String error = "Connection failed: " + ex.getMessage();
+                logger.accept("[-] " + error);
+                vulns.add(createVuln("Connectivity", "Critical", error, "Check URL validity"));
+            }
         }
         return vulns;
     }
